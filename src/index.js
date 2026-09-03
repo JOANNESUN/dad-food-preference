@@ -7,7 +7,7 @@ const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 const allowedReactions = new Set(["want", "maybe", "no"]);
 const allowedCategories = new Set(["早餐","午餐","晚餐","點心","高蛋白","纖維","軟質","湯品","海鮮"]);
 
-const MAX_BASE64_LENGTH = 700000; // ~525 KB of JPEG, well under D1's 2 MB row limit
+const MAX_BASE64_LENGTH = 1400000; // ~1.05 MB of JPEG, still half of D1's 2 MB row limit
 
 function base64ToBytes(base64) {
   const bin = atob(base64);

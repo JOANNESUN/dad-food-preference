@@ -17,7 +17,7 @@ Photo-first mobile web app/PWA-style prototype backed by Cloudflare D1.
 - Add/replace a photo by picking a dish from a list of everything still missing one
 
 ## Photo storage
-Photos are compressed in the browser (max 900px, JPEG q0.68 — roughly 80-150 KB each) and stored as
+Photos are compressed in the browser (max 1400px, JPEG q0.85 — roughly 200-500 KB each) and stored as
 BLOB bytes in the `foods.image_blob` column. Nothing else is needed: one D1 database holds both the
 menu and the images.
 
@@ -25,8 +25,8 @@ The relevant D1 limits:
 
 | Limit | Value | What it means here |
 | --- | --- | --- |
-| Max row size | 2 MB | A compressed photo is ~0.1 MB, so ~20x headroom per dish |
-| Database size (Free) | 500 MB | Roughly 3,000+ photos |
+| Max row size | 2 MB | A compressed photo is ~0.3 MB, so ~6x headroom per dish |
+| Database size (Free) | 500 MB | Roughly 1,500 photos |
 | Database size (Paid) | 10 GB | Effectively unlimited for this use |
 
 The upload endpoints accept Base64 (easiest thing for a browser canvas to produce) and decode it to
