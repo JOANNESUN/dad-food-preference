@@ -317,7 +317,16 @@ export default {
       if (request.method === "POST" && url.pathname === "/api/login") return login(request, env, secret);
       if (request.method === "POST" && url.pathname === "/api/logout") return logout();
 
-      if (!await hasValidSession(request, secret)) return json({ error: "需要密碼" }, 401);
+      // Looking at food and reacting to it is open, so Dad never meets a login
+      // screen. Only the endpoints that change the library need the password.
+      const isAdmin = await hasValidSession(request, secret);
+      if (url.pathname === "/api/session") return json({ admin: isAdmin });
+
+      const changesLibrary =
+        (request.method === "POST" && url.pathname === "/api/foods") ||
+        (request.method === "PUT" && /^\/api\/foods\/\d+\/image$/.test(url.pathname)) ||
+        url.pathname === "/api/foods/needs-photo";
+      if (changesLibrary && !isAdmin) return json({ error: "需要密碼" }, 401);
 
       if (request.method === "GET" && url.pathname === "/api/foods") return listFoods(url, env);
       if (request.method === "POST" && url.pathname === "/api/foods") return createFood(request, env);
