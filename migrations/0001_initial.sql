@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS foods (
   name TEXT NOT NULL,
   restaurant TEXT NOT NULL DEFAULT '',
   image_mime TEXT,
-  image_base64 TEXT,
+  image_blob BLOB,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

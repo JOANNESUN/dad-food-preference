@@ -11,6 +11,6 @@
     "db:seed:remote": "wrangler d1 execute dad-food-db --remote --file=./seed.sql"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.128.0"
   }
 }
