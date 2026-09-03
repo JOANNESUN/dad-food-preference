@@ -119,10 +119,12 @@ async function listFoods(url, env) {
   const cursorRaw = Number(url.searchParams.get("cursor") || 0);
   const cursor = Number.isFinite(cursorRaw) && cursorRaw > 0 ? cursorRaw : null;
   const category = (url.searchParams.get("category") || "").trim();
+  const restaurant = (url.searchParams.get("restaurant") || "").trim();
 
   const conditions = [];
   const binds = [];
   if (cursor) { conditions.push("f.id < ?"); binds.push(cursor); }
+  if (restaurant) { conditions.push("f.restaurant = ?"); binds.push(restaurant); }
   if (category) {
     conditions.push("EXISTS (SELECT 1 FROM food_categories fc WHERE fc.food_id=f.id AND fc.category=?)");
     binds.push(category);
@@ -228,6 +230,17 @@ async function photoPicker(env, url) {
   return json({ items });
 }
 
+// Restaurants for the header dropdown, in the order they were added.
+async function restaurants(env) {
+  const result = await env.DB.prepare(`
+    SELECT restaurant, COUNT(*) AS n FROM foods
+    WHERE restaurant <> ''
+    GROUP BY restaurant
+    ORDER BY MIN(id)
+  `).all();
+  return json({ items: result.results || [] });
+}
+
 async function addReaction(id, request, env) {
   const body = await request.json().catch(() => null);
   const reaction = String(body?.reaction || "");
@@ -281,6 +294,7 @@ export default {
       if (request.method === "POST" && url.pathname === "/api/foods") return createFood(request, env);
       if (request.method === "GET" && url.pathname === "/api/history") return history(env);
       if (request.method === "GET" && url.pathname === "/api/stats") return stats(env);
+      if (request.method === "GET" && url.pathname === "/api/restaurants") return restaurants(env);
       if (request.method === "GET" && url.pathname === "/api/foods/needs-photo") return photoPicker(env, url);
 
       let match = url.pathname.match(/^\/api\/foods\/(\d+)\/image$/);
