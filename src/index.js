@@ -5,7 +5,7 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
 
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 const allowedReactions = new Set(["want", "maybe", "no"]);
-const allowedCategories = new Set(["早餐","午餐","晚餐","點心","甜食","高蛋白","纖維","軟質","湯品","海鮮","冷食"]);
+const allowedCategories = new Set(["早餐","午餐","晚餐","點心","高蛋白","纖維","軟質","湯品","海鮮"]);
 
 const MAX_BASE64_LENGTH = 700000; // ~525 KB of JPEG, well under D1's 2 MB row limit
 
@@ -230,6 +230,35 @@ async function photoPicker(env, url) {
   return json({ items });
 }
 
+// One random dish, so the app opens on something different each visit.
+// Honours the same filters as the list so the hero always matches the view.
+async function randomFood(url, env) {
+  const category = (url.searchParams.get("category") || "").trim();
+  const restaurant = (url.searchParams.get("restaurant") || "").trim();
+  const conditions = [];
+  const binds = [];
+  if (restaurant) { conditions.push("f.restaurant = ?"); binds.push(restaurant); }
+  if (category) {
+    conditions.push("EXISTS (SELECT 1 FROM food_categories fc WHERE fc.food_id=f.id AND fc.category=?)");
+    binds.push(category);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const row = await env.DB.prepare(`
+    SELECT f.id, f.name, f.restaurant, f.created_at,
+      CASE WHEN f.image_blob IS NOT NULL AND length(f.image_blob) > 0 THEN 1 ELSE 0 END AS has_photo,
+      (SELECT reaction FROM reactions r WHERE r.food_id=f.id ORDER BY r.id DESC LIMIT 1) AS latest_reaction
+    FROM foods f ${where} ORDER BY RANDOM() LIMIT 1
+  `).bind(...binds).first();
+  if (!row) return json({ item: null });
+  const tags = await env.DB.prepare("SELECT category FROM food_categories WHERE food_id=?").bind(row.id).all();
+  return json({ item: {
+    ...row,
+    has_photo: Boolean(row.has_photo),
+    tags: (tags.results || []).map(t => t.category),
+    image_url: row.has_photo ? `/api/foods/${row.id}/image` : null
+  } });
+}
+
 // Restaurants for the header dropdown, in the order they were added.
 async function restaurants(env) {
   const result = await env.DB.prepare(`
@@ -295,6 +324,7 @@ export default {
       if (request.method === "GET" && url.pathname === "/api/history") return history(env);
       if (request.method === "GET" && url.pathname === "/api/stats") return stats(env);
       if (request.method === "GET" && url.pathname === "/api/restaurants") return restaurants(env);
+      if (request.method === "GET" && url.pathname === "/api/foods/random") return randomFood(url, env);
       if (request.method === "GET" && url.pathname === "/api/foods/needs-photo") return photoPicker(env, url);
 
       let match = url.pathname.match(/^\/api\/foods\/(\d+)\/image$/);
