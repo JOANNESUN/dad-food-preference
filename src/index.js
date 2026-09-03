@@ -212,15 +212,20 @@ async function getImage(id, env) {
   });
 }
 
-// Dishes that still need a photo, so the add-photo screen can offer a list
-// instead of asking for an ID to be typed in by hand.
-async function needsPhoto(env) {
+// Powers the add-photo picker. By default it lists only dishes that still have
+// no photo; with ?all=1 it lists every dish so an existing photo can be replaced.
+async function photoPicker(env, url) {
+  const all = url.searchParams.get("all") === "1";
+  const where = all ? "" : "WHERE image_blob IS NULL OR length(image_blob) = 0";
   const result = await env.DB.prepare(`
-    SELECT id, name, restaurant FROM foods
-    WHERE image_blob IS NULL OR length(image_blob) = 0
-    ORDER BY id ASC
+    SELECT id, name, restaurant,
+      CASE WHEN image_blob IS NOT NULL AND length(image_blob) > 0 THEN 1 ELSE 0 END AS has_photo
+    FROM foods
+    ${where}
+    ORDER BY restaurant, id
   `).all();
-  return json({ items: result.results || [] });
+  const items = (result.results || []).map(r => ({ ...r, has_photo: Boolean(r.has_photo) }));
+  return json({ items });
 }
 
 async function addReaction(id, request, env) {
@@ -276,7 +281,7 @@ export default {
       if (request.method === "POST" && url.pathname === "/api/foods") return createFood(request, env);
       if (request.method === "GET" && url.pathname === "/api/history") return history(env);
       if (request.method === "GET" && url.pathname === "/api/stats") return stats(env);
-      if (request.method === "GET" && url.pathname === "/api/foods/needs-photo") return needsPhoto(env);
+      if (request.method === "GET" && url.pathname === "/api/foods/needs-photo") return photoPicker(env, url);
 
       let match = url.pathname.match(/^\/api\/foods\/(\d+)\/image$/);
       if (request.method === "GET" && match) return getImage(Number(match[1]), env);
