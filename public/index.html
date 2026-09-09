@@ -75,7 +75,13 @@ function setNewRest(on){newRestMode=on;restaurant.style.display=on?'block':'none
 newRestBtn.onclick=()=>setNewRest(!newRestMode);
 async function loadRestaurantChoices(){try{const d=await api('/api/restaurants');restSelectAdd.innerHTML=d.items.map(x=>`<option value="${escapeHtml(x.restaurant)}">${escapeHtml(x.restaurant)}</option>`).join('')}catch{}}
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchTab(t.dataset.tab));renderFilters();reset('全部');loadRestaurants();
-if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+if('serviceWorker' in navigator)addEventListener('load',async()=>{try{const r=await navigator.serviceWorker.register('/sw.js');r.update()}catch{}});
+// A home-screen app is usually resumed rather than reloaded, so it can sit on
+// an old build indefinitely. Compare the deployed build id on launch and each
+// time the app comes back to the foreground, and reload once when it changes.
+async function checkBuild(){try{const r=await fetch('/version.json',{cache:'no-store'});if(!r.ok)return;const {build}=await r.json();const seen=localStorage.getItem('build');if(seen&&seen!==build){localStorage.setItem('build',build);location.reload()}else if(!seen){localStorage.setItem('build',build)}}catch{}}
+addEventListener('load',checkBuild);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkBuild()});
 </script>
 </body>
 </html>

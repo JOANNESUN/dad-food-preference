@@ -1,8 +1,7 @@
-// Minimal shell cache: lets the app open when the phone is offline or slow.
-// Dish photos are left to the normal HTTP cache (they already carry
-// cache-control: max-age=86400) so the app never hoards tens of MB.
-const SHELL = "dadfood-shell-v1";
-const SHELL_URLS = ["/", "/index.html", "/manifest.json", "/icon-192.png"];
+// Shell cache so the app opens without a connection. Dish photos are left to
+// the normal HTTP cache; caching them here would hoard tens of MB.
+const SHELL = "dadfood-shell-v2";
+const SHELL_URLS = ["/", "/manifest.json", "/icon-192.png"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(SHELL).then(c => c.addAll(SHELL_URLS)).then(() => self.skipWaiting()));
@@ -21,18 +20,18 @@ self.addEventListener("fetch", event => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/api/")) return; // always live data
+  if (url.pathname.startsWith("/api/") || url.pathname === "/version.json") return; // always live
 
-  // Navigations: network first, fall back to the cached shell when offline.
   if (request.mode === "navigate") {
+    // no-store so a stale HTTP-cached copy cannot mask a new deploy
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-store" })
         .then(res => {
           const copy = res.clone();
           caches.open(SHELL).then(c => c.put("/", copy));
           return res;
         })
-        .catch(() => caches.match("/").then(r => r || caches.match("/index.html")))
+        .catch(() => caches.match("/"))
     );
     return;
   }
